@@ -133,6 +133,24 @@ DataValidatorGroup::put(unsigned index, uint64_t timestamp, const float val[3], 
 	}
 }
 
+
+void
+DataValidatorGroup::put(unsigned index, uint64_t timestamp, const float val[3], uint64_t error_count, int priority, bool is_external)
+{
+	DataValidator *next = _first;
+	unsigned i = 0;
+
+	while (next != nullptr) {
+		if (i == index) {
+			next->put(timestamp, val, error_count, priority,is_external);
+			break;
+		}
+
+		next = next->sibling();
+		i++;
+	}
+}
+
 float *
 DataValidatorGroup::get_best(uint64_t timestamp, int *index)
 {
@@ -145,7 +163,10 @@ DataValidatorGroup::get_best(uint64_t timestamp, int *index)
 	float max_confidence = -1.0f;
 	int max_priority = -1000;
 	int max_index = -1;
+	int external_index = -1;
 	DataValidator *best = nullptr;
+	DataValidator *external = nullptr;
+	bool is_external = false;
 
 	int i = 0;
 
@@ -155,6 +176,10 @@ DataValidatorGroup::get_best(uint64_t timestamp, int *index)
 		if (i == pre_check_best) {
 			pre_check_prio = next->priority();
 			pre_check_confidence = confidence;
+		}
+		if(next->isexternal()==true){
+			external_index = i;
+			external = next;
 		}
 
 		/*
@@ -170,9 +195,9 @@ DataValidatorGroup::get_best(uint64_t timestamp, int *index)
 			max_index = i;
 			max_confidence = confidence;
 			max_priority = next->priority();
+			is_external = next->isexternal();
 			best = next;
 		}
-
 		next = next->sibling();
 		i++;
 	}
@@ -217,9 +242,49 @@ DataValidatorGroup::get_best(uint64_t timestamp, int *index)
 		/* for all cases we want to keep a record of the best index */
 		_curr_best = max_index;
 	}
+	if(_use_external_first ==-1)
+	{
+		*index = max_index;
+		_is_external = is_external;
+		return (best) ? best->value() : nullptr;
+	}
+	else{
+		*index = external_index;
+		return (external) ? external->value() : nullptr;
+	}
+}
 
-	*index = max_index;
+
+float *
+DataValidatorGroup::set_best(uint64_t timestamp, int index)
+{
+	DataValidator *next = _first;
+
+	//int external_index = -1;
+	DataValidator *best = nullptr;
+	bool is_external = false;
+	int selected = 0;
+
+	int i = 0;
+
+	while (next != nullptr) {
+		//float confidence = next->confidence(timestamp);
+
+		if(index==i){
+			best = next;
+			selected = i;
+			if(next->isexternal()==true)
+			{
+				is_external = next->isexternal();
+			}
+		}
+		next = next->sibling();
+		i++;
+	}
+	_curr_best = selected;
+	_is_external = is_external;
 	return (best) ? best->value() : nullptr;
+
 }
 
 float
@@ -276,9 +341,9 @@ void
 DataValidatorGroup::print()
 {
 	/* print the group's state */
-	ECL_INFO("validator: best: %d, prev best: %d, failsafe: %s (%u events)",
+	ECL_INFO("validator: best: %d, prev best: %d, failsafe: %s (%u events), external : %s",
 		 _curr_best, _prev_best, (_toggle_count > 0) ? "YES" : "NO",
-		 _toggle_count);
+		 _toggle_count,(_is_external==true) ? "YES":"NO");
 
 	DataValidator *next = _first;
 	unsigned i = 0;
@@ -287,13 +352,14 @@ DataValidatorGroup::print()
 		if (next->used()) {
 			uint32_t flags = next->state();
 
-			ECL_INFO("sensor #%u, prio: %d, state:%s%s%s%s%s%s", i, next->priority(),
+			ECL_INFO("sensor #%u, prio: %d, state:%s%s%s%s%s%s, external : %s", i, next->priority(),
 				 ((flags & DataValidator::ERROR_FLAG_NO_DATA) ? " OFF" : ""),
 				 ((flags & DataValidator::ERROR_FLAG_STALE_DATA) ? " STALE" : ""),
 				 ((flags & DataValidator::ERROR_FLAG_TIMEOUT) ? " TOUT" : ""),
 				 ((flags & DataValidator::ERROR_FLAG_HIGH_ERRCOUNT) ? " ECNT" : ""),
 				 ((flags & DataValidator::ERROR_FLAG_HIGH_ERRDENSITY) ? " EDNST" : ""),
-				 ((flags == DataValidator::ERROR_FLAG_NO_ERROR) ? " OK" : ""));
+				 ((flags == DataValidator::ERROR_FLAG_NO_ERROR) ? " OK" : ""),
+				 (next->isexternal()==true) ? "YES":"NO");
 
 			next->print();
 		}

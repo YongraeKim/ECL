@@ -98,6 +98,54 @@ DataValidator::put(uint64_t timestamp, const float val[dimensions], uint64_t err
 
 	_time_last = timestamp;
 }
+void
+DataValidator::put(uint64_t timestamp, const float val[dimensions], uint64_t error_count_in, int priority_in, bool is_external)
+{
+	_event_count++;
+
+	if (error_count_in > _error_count) {
+		_error_density += (error_count_in - _error_count);
+
+	} else if (_error_density > 0) {
+		_error_density--;
+	}
+
+	_error_count = error_count_in;
+	_priority = priority_in;
+	_is_external = is_external;
+
+	for (unsigned i = 0; i < dimensions; i++) {
+		if (_time_last == 0) {
+			_mean[i] = 0;
+			_lp[i] = val[i];
+			_M2[i] = 0;
+
+		} else {
+			float lp_val = val[i] - _lp[i];
+
+			float delta_val = lp_val - _mean[i];
+			_mean[i] += delta_val / _event_count;
+			_M2[i] += delta_val * (lp_val - _mean[i]);
+			_rms[i] = sqrtf(_M2[i] / (_event_count - 1));
+
+			if (fabsf(_value[i] - val[i]) < 0.000001f) {
+				_value_equal_count++;
+
+			} else {
+				_value_equal_count = 0;
+			}
+		}
+
+		_vibe[i] = _vibe[i] * 0.99f + 0.01f * fabsf(val[i] - _lp[i]);
+
+		// XXX replace with better filter, make it auto-tune to update rate
+		_lp[i] = _lp[i] * 0.99f + 0.01f * val[i];
+
+		_value[i] = val[i];
+	}
+
+	_time_last = timestamp;
+}
 
 float
 DataValidator::confidence(uint64_t timestamp)

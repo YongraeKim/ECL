@@ -59,12 +59,20 @@ public:
 	 */
 	void			put(uint64_t timestamp, float val, uint64_t error_count, int priority);
 
+
 	/**
 	 * Put a 3D item into the validator.
 	 *
 	 * @param val		Item to put
 	 */
 	void			put(uint64_t timestamp, const float val[dimensions], uint64_t error_count, int priority);
+
+	/**
+	 * Put a 3D item into the validator.
+	 *
+	 * @param val		Item to put
+	 */
+	void			put(uint64_t timestamp, const float val[dimensions], uint64_t error_count, int priority, bool is_external);
 
 	/**
 	 * Get the next sibling in the group
@@ -84,6 +92,7 @@ public:
 	 * @return		the confidence between 0 and 1
 	 */
 	float			confidence(uint64_t timestamp);
+	bool			isexternal(){return _is_external;};
 
 	/**
 	 * Get the error count of this validator
@@ -181,7 +190,7 @@ private:
 	int _error_density{0};				/**< ratio between successful reads and errors */
 
 	int _priority{0};				/**< sensor nominal priority */
-
+	bool _is_external{false};
 	float _mean[dimensions] {};			/**< mean of value */
 	float _lp[dimensions] {};			/**< low pass value */
 	float _M2[dimensions] {};			/**< RMS component value */

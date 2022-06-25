@@ -68,6 +68,16 @@ public:
 	 * @param priority	The priority of the sensor
 	 */
 	void			put(unsigned index, uint64_t timestamp, const float val[3], uint64_t error_count, int priority);
+/**
+	 * Put an item into the validator group.
+	 *
+	 * @param index		Sensor index
+	 * @param timestamp	The timestamp of the measurement
+	 * @param val		The 3D vector
+	 * @param error_count	The current error count of the sensor
+	 * @param priority	The priority of the sensor
+	 */
+	void			put(unsigned index, uint64_t timestamp, const float val[3], uint64_t error_count, int priority, bool is_external);
 
 	/**
 	 * Get the best data triplet of the group
@@ -75,6 +85,14 @@ public:
 	 * @return		pointer to the array of best values
 	 */
 	float			*get_best(uint64_t timestamp, int *index);
+
+	/**
+	 * Get the best data triplet of the group
+	 *
+	 * @return		pointer to the array of masked values
+	 */
+	float			*set_best(uint64_t timestamp, int index);
+
 
 	/**
 	 * Get the RMS / vibration factor
@@ -130,6 +148,7 @@ public:
 	 * @param threshold The number of equal values before considering the sensor stale
 	 */
 	void			set_equal_value_threshold(uint32_t threshold);
+	void			set_use_external_sens_first(int use_external){_use_external_first = use_external;};
 
 
 private:
@@ -140,13 +159,13 @@ private:
 
 	int _curr_best{-1};		/**< currently best index */
 	int _prev_best{-1};		/**< the previous best index */
-
+	bool _is_external{false};
 	uint64_t _first_failover_time{0};	/**< timestamp where the first failover occured or zero if none occured */
 
 	unsigned _toggle_count{0};		/**< number of back and forth switches between two sensors */
 
 	static constexpr float MIN_REGULAR_CONFIDENCE = 0.9f;
-
+	int _use_external_first{-1};
 	/* we don't want this class to be copied */
 	DataValidatorGroup(const DataValidatorGroup &);
 	DataValidatorGroup operator=(const DataValidatorGroup &);
